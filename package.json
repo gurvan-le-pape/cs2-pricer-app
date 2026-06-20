@@ -1,5 +1,5 @@
 {
-  "name": "cs2-pricer-app",
+  "name": "app",
   "private": true,
   "scripts": {
     "build": "turbo run build",

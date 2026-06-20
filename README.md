@@ -1,159 +1,143 @@
-# Turborepo starter
+# CS2 Skin Pricer — App
 
-This Turborepo starter is maintained by the Turborepo core team.
+> Next.js frontend + NestJS API for the CS2 Skin Pricer.
 
-## Using this example
+## Repository structure
 
-Run the following command:
-
-```sh
-npx create-turbo@latest
+```
+.
+├── apps/
+│   ├── frontend/    # Next.js — market explorer, inventory analysis, Steam login
+│   └── api/         # NestJS — REST API, Steam OpenID auth, ML service calls
+└── packages/
+    ├── types/       # shared TypeScript types between frontend and API
+    ├── ui/          # shared UI components
+    ├── eslint-config/
+    └── typescript-config/
 ```
 
-## What's inside?
+## Related repositories
 
-This Turborepo includes the following packages/apps:
+- **`ml`** — Python ML service: data collection, feature engineering, model training, FastAPI prediction endpoints
 
-### Apps and Packages
+The only link between the two repos at runtime is HTTP — NestJS calls the FastAPI prediction endpoint.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Stack
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js / TypeScript |
+| API | NestJS / TypeScript |
+| Database | PostgreSQL |
+| Cache | Redis |
+| Auth | Steam OpenID |
+| Mono-repo tooling | Turborepo |
+| Styling | Tailwind CSS v4 + shadcn/ui |
 
-### Utilities
+## Pages
 
-This Turborepo has some additional tools already setup for you:
+- **Market explorer** (`/`) — browse all skins with predicted vs actual price and over/undervalued score, no login required
+- **Skin detail** (`/skins/[id]`) — breakdown of why the model priced a skin the way it did
+- **Inventory** (`/inventory`) — sign in with Steam, see your skins ranked by opportunity
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+## Initial scaffold
 
-### Build
+How this repo was created:
 
-To build all apps and packages, run the following command:
+```bash
+npx create-turbo@latest app
+cd app
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+# rename default web app to frontend
+mv apps/web apps/frontend
 
-```sh
-cd my-turborepo
-turbo build
+# remove docs app (Turborepo demo, not needed)
+rm -rf apps/docs
+
+# create NestJS API
+cd apps
+npx @nestjs/cli new api --package-manager npm
+cd ..
+
+# install all dependencies
+npm install
 ```
 
-Without global `turbo`, use your package manager:
+After scaffolding, four manual changes are required:
 
-```sh
-cd my-turborepo
-npx turbo build
-npm dlx turbo build
-npm exec turbo build
+**1. Change NestJS port to 3001** in `apps/api/src/main.ts`:
+```typescript
+await app.listen(3001);
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+**2. Add `dev` script to `apps/api/package.json`** so Turborepo picks it up:
+```json
+"dev": "nest start --watch"
 ```
 
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-npm exec turbo build --filter=docs
-npm exec turbo build --filter=docs
+**3. Set up Tailwind CSS v4** in `apps/frontend`:
+```bash
+cd apps/frontend
+npm install tailwindcss@latest @tailwindcss/postcss postcss
 ```
 
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
+Create `apps/frontend/postcss.config.mjs`:
+```js
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+export default config;
 ```
 
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-npm exec turbo dev
-npm exec turbo dev
+Add to the top of `apps/frontend/app/globals.css`:
+```css
+@import "tailwindcss";
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
+Add to `apps/frontend/tsconfig.json`:
+```json
+{
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
 ```
 
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-npm exec turbo dev --filter=web
-npm exec turbo dev --filter=web
+**4. Set up shadcn/ui** in `apps/frontend`:
+```bash
+cd apps/frontend
+npx shadcn@latest init
+# Select: Radix → Nova → confirm
 ```
 
-### Remote Caching
+## Development
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
+```bash
+npm install
+npm run dev
 ```
 
-Without global `turbo`, use your package manager:
+This starts both `frontend` (Next.js) on port 3000 and `api` (NestJS) on port 3001 in parallel via Turborepo.
 
-```sh
-cd my-turborepo
-npx turbo login
-npm exec turbo login
-npm exec turbo login
+Postgres and Redis should be running via Docker from the root `cs2-pricer` repo:
+
+```bash
+cd ../../  # cs2-pricer root
+docker compose up postgres redis
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+The API expects the ML service (`ml`) to be running locally on port `8000`.
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+## Status
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Early stage. Scaffold in place. Auth and core pages in progress.
 
-```sh
-turbo link
-```
+---
 
-Without global `turbo`:
-
-```sh
-npx turbo link
-npm exec turbo link
-npm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+*Built as a portfolio project. Not affiliated with Valve.*
