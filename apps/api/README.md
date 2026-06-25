@@ -1,98 +1,96 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# CS2 Pricer — API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS backend for the CS2 skin price prediction platform.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+| | |
+|---|---|
+| Framework | NestJS 11 (Express) |
+| Language | TypeScript |
+| Database | PostgreSQL (TypeORM) |
+| Auth | Steam OpenID + JWT (Passport) |
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Bootstrap
 
-## Project setup
-
+Scaffolded with:
 ```bash
-$ npm install
+nest new api
 ```
 
-## Compile and run the project
+## Architecture
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```
+Frontend (Next.js)
+    │  JWT
+    ▼
+NestJS API
+    ├── PostgreSQL        (users, skin prices, predictions)
+    ├── Steam API         (inventory fetch)
+    └── open.er-api.com  (CNY → EUR rate)
 ```
 
-## Run tests
+## Modules
 
-```bash
-# unit tests
-$ npm run test
+### `auth`
+Steam OpenID login via `passport-steam`. On successful authentication, the user is upserted in the database and a signed JWT is returned to the frontend. All protected routes use the JWT strategy.
 
-# e2e tests
-$ npm run test:e2e
+### `users`
+User entity and service. A user record is created or updated on every Steam login.
 
-# test coverage
-$ npm run test:cov
+### `inventory`
+Core domain module. Fetches the authenticated user's CS2 inventory from the Steam API, then enriches each skin with:
+- Current market price — read from the database (populated by the ML service from Buff163)
+- Fair value prediction — read from the database (produced by the ML model)
+- Undervalue/overvalue ratio (`actual / predicted`)
+
+**Entities:**
+- `skin-listing.entity` — a skin in the user's inventory
+- `skin-price.entity` — Buff163 market price record
+- `skin-prediction.entity` — ML model prediction record
+
+### `fx`
+Fetches the live CNY/EUR exchange rate from `open.er-api.com/v6/latest/CNY` and exposes a conversion helper used by the inventory module when formatting prices for the frontend.
+
+## Auth flow
+
+```
+User clicks "Sign in with Steam"
+  → GET /api/auth/steam
+  → Steam OpenID
+  → GET /api/auth/steam/callback
+  → Upsert user in DB, sign JWT
+  → Redirect to frontend /auth/callback?token=...
+  → Frontend stores token, uses as Authorization: Bearer <token>
 ```
 
-## Deployment
+## Environment variables
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+```env
+DATABASE_URL=
+JWT_SECRET=
+STEAM_API_KEY=
+FRONTEND_URL=http://localhost:3000
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Development
 
-## Resources
+```bash
+npm run dev        # watch mode, port 3001
+npm run build      # compile to dist/
+npm run start:prod # run compiled output
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## Testing
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+npm test           # unit tests
+npm run test:cov   # with coverage
+npm run test:e2e   # end-to-end
+```
 
-## Support
+## Related
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **`../frontend`** — Next.js UI
+- **`../../ml`** — XGBoost price prediction model and data collector (populates the DB)
+- **`../../`** — root repo: docker-compose, infrastructure
