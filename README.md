@@ -6,43 +6,33 @@
 
 ```
 .
-├── apps/
-│   ├── frontend/    # Next.js — market explorer, inventory analysis, Steam login
-│   └── api/         # NestJS — REST API, Steam OpenID auth, ML service calls
-└── packages/
-    ├── types/       # shared TypeScript types between frontend and API
-    ├── ui/          # shared UI components
-    ├── eslint-config/
-    └── typescript-config/
+└── apps/
+    ├── frontend/    # Next.js — Steam login, inventory analysis
+    └── api/         # NestJS — REST API, Steam OpenID auth
 ```
 
 ## Related repositories
 
-- **`ml`** — Python ML service: data collection, feature engineering, model training, FastAPI prediction endpoints
-
-The only link between the two repos at runtime is HTTP — NestJS calls the FastAPI prediction endpoint.
+- **`ml`** — Python ML service: data collection, feature engineering, model training. Populates the database with skin prices and fair value predictions consumed by the API.
 
 ## Stack
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js / TypeScript |
-| API | NestJS / TypeScript |
+| Frontend | Next.js 16 / TypeScript |
+| API | NestJS 11 / TypeScript |
 | Database | PostgreSQL |
-| Cache | Redis |
 | Auth | Steam OpenID |
 | Mono-repo tooling | Turborepo |
 | Styling | Tailwind CSS v4 + shadcn/ui |
 
 ## Pages
 
-- **Market explorer** (`/`) — browse all skins with predicted vs actual price and over/undervalued score, no login required
-- **Skin detail** (`/skins/[id]`) — breakdown of why the model priced a skin the way it did
-- **Inventory** (`/inventory`) — sign in with Steam, see your skins ranked by opportunity
+- **Home** (`/`) — Steam login
+- **Auth callback** (`/auth/callback`) — receives JWT from the API after Steam login
+- **Inventory** (`/inventory`) — authenticated view of the user's skins with market price and fair value prediction
 
 ## Initial scaffold
-
-How this repo was created:
 
 ```bash
 npx create-turbo@latest app
@@ -59,11 +49,10 @@ cd apps
 npx @nestjs/cli new api --package-manager npm
 cd ..
 
-# install all dependencies
 npm install
 ```
 
-After scaffolding, four manual changes are required:
+After scaffolding, two manual changes are required:
 
 **1. Change NestJS port to 3001** in `apps/api/src/main.ts`:
 ```typescript
@@ -75,47 +64,6 @@ await app.listen(3001);
 "dev": "nest start --watch"
 ```
 
-**3. Set up Tailwind CSS v4** in `apps/frontend`:
-```bash
-cd apps/frontend
-npm install tailwindcss@latest @tailwindcss/postcss postcss
-```
-
-Create `apps/frontend/postcss.config.mjs`:
-```js
-const config = {
-  plugins: {
-    "@tailwindcss/postcss": {},
-  },
-};
-export default config;
-```
-
-Add to the top of `apps/frontend/app/globals.css`:
-```css
-@import "tailwindcss";
-```
-
-Add to `apps/frontend/tsconfig.json`:
-```json
-{
-  "compilerOptions": {
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"]
-    }
-  }
-}
-```
-
-**4. Set up shadcn/ui** in `apps/frontend`:
-```bash
-cd apps/frontend
-npx shadcn@latest init
-# Select: Radix → Nova → confirm
-```
-
 ## Development
 
 ```bash
@@ -123,20 +71,18 @@ npm install
 npm run dev
 ```
 
-This starts both `frontend` (Next.js) on port 3000 and `api` (NestJS) on port 3001 in parallel via Turborepo.
+Starts `frontend` on port 3000 and `api` on port 3001 in parallel via Turborepo.
 
-Postgres and Redis should be running via Docker from the root `cs2-pricer` repo:
+Postgres should be running via Docker from the root `cs2-pricer` repo:
 
 ```bash
 cd ../../  # cs2-pricer root
-docker compose up postgres redis
+docker compose up postgres
 ```
-
-The API expects the ML service (`ml`) to be running locally on port `8000`.
 
 ## Status
 
-Early stage. Scaffold in place. Auth and core pages in progress.
+Early stage. Auth and inventory page in progress.
 
 ---
 

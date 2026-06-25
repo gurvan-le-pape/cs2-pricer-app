@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# CS2 Pricer — Frontend
 
-## Getting Started
+Next.js frontend for the CS2 skin price prediction platform.
 
-First, run the development server:
+## Stack
 
+| | |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Styling | Tailwind CSS v4 |
+| Components | shadcn/ui (radix-nova) |
+| Theme | next-themes (light/dark/system) |
+| Language | TypeScript |
+
+## Setup
+
+Bootstrapped with:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npx create-next-app@latest frontend --typescript --tailwind --eslint --app --src-dir no --import-alias "@/*"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+shadcn initialized with:
+```bash
+npx shadcn@latest init        # style: radix-nova, base color: neutral
+npx shadcn@latest add button card badge select separator
+npm install next-themes
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+### `/` — Home
+Landing page with Steam login button. Redirects to NestJS Steam OpenID auth.
 
-## Learn More
+### `/auth/callback` — Auth callback
+Receives JWT token from NestJS after Steam login, stores it in localStorage, redirects to `/inventory`.
 
-To learn more about Next.js, take a look at the following resources:
+### `/inventory` — Inventory
+Fetches the user's CS2 inventory from the NestJS API, enriched with:
+- Current market price (Buff163, converted CNY→EUR)
+- Fair value prediction (ML model)
+- Undervalue/overvalue % vs model prediction
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Supports sorting by price and valuation, and filtering to discontinued-collection skins only.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Auth flow
 
-## Deploy on Vercel
+User clicks "Sign in with Steam"
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+→ Redirects to NestJS /api/auth/steam
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+→ Steam OpenID → NestJS /api/auth/steam/callback
+
+→ NestJS issues JWT, redirects to /auth/callback?token=...
+
+→ Frontend stores token in localStorage
+
+→ All API calls use Authorization: Bearer <token>
+
+## Environment variables
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+## Development
+
+```bash
+npm run dev   # starts on port 3000
+```
