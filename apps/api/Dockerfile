@@ -4,7 +4,6 @@ WORKDIR /app
 FROM base AS deps
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
-COPY packages/ ./packages/
 RUN npm install
 
 FROM base AS builder
