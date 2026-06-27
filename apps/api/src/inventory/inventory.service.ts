@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { SkinListing } from './skin-listing.entity';
 import { EnrichedItem } from './inventory.types';
 import { FxService } from 'src/fx/fx.service';
+import { MOCK_INVENTORY } from './steam.mock';
 
 interface SteamAsset {
   classid: string;
@@ -21,11 +22,20 @@ interface SteamDescription {
   tradable: number;
 }
 
+interface CacheEntry {
+  data: EnrichedItem[];
+  expiresAt: number;
+}
+
 const round = (n: number, decimals: number) =>
   Math.round(n * 10 ** decimals) / 10 ** decimals;
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 @Injectable()
 export class InventoryService {
+  private readonly cache = new Map<string, CacheEntry>();
+
   constructor(
     private readonly http: HttpService,
     private readonly fxService: FxService,
@@ -34,25 +44,31 @@ export class InventoryService {
   ) {}
 
   async getInventory(steamId: string): Promise<EnrichedItem[]> {
+    if (process.env.STEAM_MOCK === 'true') {
+      return MOCK_INVENTORY;
+    }
+
+    const cached = this.cache.get(steamId);
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.data;
+    }
+
     const fxRate = await this.fxService.getCnyToEur();
 
     const url = `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=1000`;
-    
+
     let data: any;
     try {
       const response = await firstValueFrom(this.http.get(url));
       data = response.data;
     } catch (error) {
-      console.error('Steam inventory fetch failed:', {
-      status: error?.response?.status,
-      data: error?.response?.data,
-      message: error?.message,
-    });
+      if (error?.response?.status === 429) {
+        return cached?.data ?? [];
+      }
       throw error;
     }
 
     if (!data?.assets || !data?.descriptions) {
-      console.error('Unexpected Steam response:', data);
       return [];
     }
 
@@ -114,6 +130,9 @@ export class InventoryService {
       });
     }
 
+    if (result.length > 0) {
+      this.cache.set(steamId, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
+    }
     return result;
   }
 }

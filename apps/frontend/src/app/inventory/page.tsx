@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/navbar';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -12,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { apiFetch } from '@/lib/api';
 
 interface InventoryItem {
   listingId: string | null;
@@ -51,14 +51,13 @@ export default function InventoryPage() {
   const [discontinuedOnly, setDiscontinuedOnly] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { router.replace('/'); return; }
-
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/inventory`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => { if (!res.ok) throw new Error('Failed to fetch inventory'); return res.json(); })
-      .then((data: InventoryItem[]) => setItems(data))
+    apiFetch('/api/inventory', { cache: 'no-store' })
+      .then(res => {
+        if (res.status === 401) { router.replace('/'); return null; }
+        if (!res.ok) throw new Error('Failed to fetch inventory');
+        return res.json();
+      })
+      .then((data: InventoryItem[] | null) => { if (data) setItems(data); })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, [router]);
@@ -70,7 +69,7 @@ export default function InventoryPage() {
 
   if (loading) return (
     <>
-      <Navbar />
+      <Navbar showSignOut />
       <main className="flex items-center justify-center min-h-[calc(100vh-3.5rem)]">
         <p className="text-muted-foreground">Loading inventory...</p>
       </main>
@@ -79,7 +78,7 @@ export default function InventoryPage() {
 
   if (error) return (
     <>
-      <Navbar />
+      <Navbar showSignOut />
       <main className="flex items-center justify-center min-h-[calc(100vh-3.5rem)]">
         <p className="text-destructive">{error}</p>
       </main>
@@ -88,7 +87,7 @@ export default function InventoryPage() {
 
   return (
     <>
-      <Navbar />
+      <Navbar showSignOut />
       <main className="max-w-4xl mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Your Inventory</h1>
