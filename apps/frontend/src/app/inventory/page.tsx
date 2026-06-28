@@ -69,7 +69,7 @@ export default function InventoryPage() {
 
   if (loading) return (
     <>
-      <Navbar showSignOut />
+      <Navbar />
       <main className="flex items-center justify-center min-h-[calc(100vh-3.5rem)]">
         <p className="text-muted-foreground">Loading inventory...</p>
       </main>
@@ -78,7 +78,7 @@ export default function InventoryPage() {
 
   if (error) return (
     <>
-      <Navbar showSignOut />
+      <Navbar />
       <main className="flex items-center justify-center min-h-[calc(100vh-3.5rem)]">
         <p className="text-destructive">{error}</p>
       </main>
@@ -87,7 +87,7 @@ export default function InventoryPage() {
 
   return (
     <>
-      <Navbar showSignOut />
+      <Navbar />
       <main className="max-w-4xl mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Your Inventory</h1>
