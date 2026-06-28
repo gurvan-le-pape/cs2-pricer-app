@@ -9,9 +9,15 @@ import { FxService } from 'src/fx/fx.service';
 import { MOCK_INVENTORY } from './steam.mock';
 
 interface SteamAsset {
+  assetid: string;
   classid: string;
   instanceid: string;
   amount: string;
+}
+
+interface SteamTag {
+  category: string;
+  localized_tag_name: string;
 }
 
 interface SteamDescription {
@@ -20,6 +26,19 @@ interface SteamDescription {
   market_hash_name: string;
   icon_url: string;
   tradable: number;
+  tags?: SteamTag[];
+}
+
+interface SteamAssetProperty {
+  propertyid: number;
+  int_value?: number;
+  float_value?: string;
+  name: string;
+}
+
+interface SteamAssetProperties {
+  assetid: string;
+  asset_properties: SteamAssetProperty[];
 }
 
 interface CacheEntry {
@@ -30,7 +49,11 @@ interface CacheEntry {
 const round = (n: number, decimals: number) =>
   Math.round(n * 10 ** decimals) / 10 ** decimals;
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+function getTag(tags: SteamTag[] | undefined, category: string): string | null {
+  return tags?.find(t => t.category === category)?.localized_tag_name ?? null;
+}
 
 @Injectable()
 export class InventoryService {
@@ -74,10 +97,18 @@ export class InventoryService {
 
     const assets: SteamAsset[] = data.assets;
     const descriptions: SteamDescription[] = data.descriptions;
+    const assetPropertiesList: SteamAssetProperties[] = data.asset_properties ?? [];
 
+    // Map classid_instanceid → description
     const descMap = new Map<string, SteamDescription>();
     for (const desc of descriptions) {
       descMap.set(`${desc.classid}_${desc.instanceid}`, desc);
+    }
+
+    // Map assetid → float/paint seed
+    const assetPropsMap = new Map<string, SteamAssetProperties>();
+    for (const ap of assetPropertiesList) {
+      assetPropsMap.set(ap.assetid, ap);
     }
 
     const hashNames = [
@@ -119,6 +150,18 @@ export class InventoryService {
       const hasValidPrice = currentPrice !== null && currentPrice > 0;
       const hasPrediction = listing?.prediction != null;
 
+      const tags = desc.tags;
+      const quality = getTag(tags, 'Quality');
+      const isStatTrak = quality === 'StatTrak™' || desc.market_hash_name.includes('StatTrak™');
+      const isSouvenir = quality === 'Souvenir' || desc.market_hash_name.includes('Souvenir');
+
+      // Float and paint seed from asset_properties
+      const assetProps = assetPropsMap.get(asset.assetid);
+      const floatProp = assetProps?.asset_properties.find(p => p.propertyid === 2);
+      const paintSeedProp = assetProps?.asset_properties.find(p => p.propertyid === 1);
+      const float = floatProp?.float_value ? parseFloat(floatProp.float_value) : null;
+      const paintSeed = paintSeedProp?.int_value ?? null;
+
       result.push({
         listingId: listing?.id ?? null,
         marketHashName: desc.market_hash_name,
@@ -127,6 +170,15 @@ export class InventoryService {
         predictedPrice: hasPrediction ? round(listing.prediction.predictedPriceCny * fxRate, 2) : null,
         undervaluePct: hasValidPrice && hasPrediction ? listing.prediction.undervaluePct : null,
         totalSupply: listing?.totalSupply ?? null,
+        weaponType: getTag(tags, 'Type'),
+        weapon: getTag(tags, 'Weapon'),
+        collection: getTag(tags, 'ItemSet'),
+        rarity: getTag(tags, 'Rarity'),
+        wear: getTag(tags, 'Exterior'),
+        isStatTrak,
+        isSouvenir,
+        float,
+        paintSeed,
       });
     }
 
